@@ -14,7 +14,17 @@ Options : `-l` langage, `-n` nombre de dépôts, `--min-stars`, `-o` fichier Mar
 
 ## Automatisation
 
-Le workflow `.github/workflows/gh-bench.yml` tourne chaque lundi et publie le rapport dans une issue.
+Le workflow `.github/workflows/gh-bench.yml` tourne chaque lundi :
+1. il publie le rapport dans une **issue**, avec un lien de téléchargement ;
+2. il génère une **présentation PowerPoint** et l'enregistre dans le dossier `rapports/`.
+
+Pour générer la présentation à la main :
+
+```bash
+pip install python-pptx
+python gh_bench.py "http client" -l python --json data.json
+python gh_slides.py data.json -o rapport.pptx
+```
 Pour un autre sujet : onglet **Actions → Benchmark de librairies → Run workflow**.
 
 ## Notation (/100)

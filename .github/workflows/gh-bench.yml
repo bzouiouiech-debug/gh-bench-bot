@@ -7,22 +7,51 @@ on:
       query:    { description: "Sujet", default: "http client" }
       language: { description: "Langage", default: "python" }
 permissions:
-  contents: read
+  contents: write
   issues: write
 jobs:
   bench:
     runs-on: ubuntu-latest
+    env:
+      QUERY: ${{ inputs.query || 'http client' }}
+      LANG_: ${{ inputs.language || 'python' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
+      - run: pip install python-pptx
+
       - name: Lancer le benchmark
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python gh_bench.py "$QUERY" -l "$LANG_" -n 10 -o rapport.md --json data.json
+
+      - name: Générer la présentation PowerPoint
         run: |
-          python gh_bench.py "${{ inputs.query || 'http client' }}" \
-            -l "${{ inputs.language || 'python' }}" -n 10 -o rapport.md
+          SLUG=$(echo "$QUERY-$LANG_" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-')
+          FILE="rapports/$(date +%Y-%m-%d)-$SLUG.pptx"
+          mkdir -p rapports
+          python gh_slides.py data.json -o "$FILE"
+          echo "FILE=$FILE" >> "$GITHUB_ENV"
+
+      - name: Enregistrer la présentation dans le dépôt
+        run: |
+          git config user.name "gh-bench-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rapports/
+          git commit -m "Rapport du $(date +%d/%m/%Y) : $QUERY ($LANG_)"
+          git push
+
       - name: Publier le rapport dans une issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh issue create --title "Benchmark $(date +%d/%m/%Y)" --body-file rapport.md
+        run: |
+          URL="https://github.com/${{ github.repository }}/raw/main/$FILE"
+          { echo "📊 **[Télécharger la présentation PowerPoint]($URL)**"; echo; cat rapport.md; } > body.md
+          gh issue create --title "Benchmark $(date +%d/%m/%Y) : $QUERY ($LANG_)" --body-file body.md
+
+      - name: Joindre aussi la présentation au run
+        uses: actions/upload-artifact@v4
+        with:
+          name: presentation
+          path: ${{ env.FILE }}

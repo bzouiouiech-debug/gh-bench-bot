@@ -363,11 +363,18 @@ def main() -> None:
         f.write(report(a.query, a.language, ranked))
     if a.json:
         with open(a.json, "w", encoding="utf-8") as f:
-            json.dump([{**{k: v for k, v in vars(r).items()
-                           if k not in ("pushed_at", "created_at", "last_release")},
-                        "pushed_at": r.pushed_at.isoformat(),
-                        "last_release": r.last_release.isoformat() if r.last_release else None,
-                        "verdict": verdict(r)} for r in ranked], f, ensure_ascii=False, indent=2)
+            json.dump({
+                "query": a.query, "language": a.language, "generated": NOW.isoformat(),
+                "weights": WEIGHTS,
+                "proposals": proposals(ranked),
+                "repos": [{**{k: v for k, v in vars(r).items()
+                              if k not in ("pushed_at", "created_at", "last_release")},
+                           "days_since_push": r.days_since_push,
+                           "age_years": round(r.age_years, 1),
+                           "pushed_at": r.pushed_at.isoformat(),
+                           "last_release": r.last_release.isoformat() if r.last_release else None,
+                           "verdict": verdict(r)} for r in ranked],
+            }, f, ensure_ascii=False, indent=2)
 
     print(f"\n✅ Rapport écrit dans {a.out} ({gh.calls} appels API)", file=sys.stderr)
     for i, r in enumerate(ranked[:3], 1):
