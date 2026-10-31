@@ -1,0 +1,28 @@
+name: Benchmark de librairies
+on:
+  schedule:
+    - cron: "17 6 * * 1"        # chaque lundi à 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      query:    { description: "Sujet", default: "http client" }
+      language: { description: "Langage", default: "python" }
+permissions:
+  contents: read
+  issues: write
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Lancer le benchmark
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python gh_bench.py "${{ inputs.query || 'http client' }}" \
+            -l "${{ inputs.language || 'python' }}" -n 10 -o rapport.md
+      - name: Publier le rapport dans une issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue create --title "Benchmark $(date +%d/%m/%Y)" --body-file rapport.md
